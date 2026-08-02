@@ -790,7 +790,8 @@ class KFlowCard extends HTMLElement {
   _strVal(eid) {
     if (!eid) return '';
     const s = this._hass?.states?.[eid];
-    return s ? String(s.state).toLowerCase() : '';
+    const value = s ? String(s.state).toLowerCase() : '';
+    return value === 'unavailable' || value === 'unknown' ? '' : value;
   }
 
   _socColor(p) { return p<=25?'#f85149':p<=50?'#f39c4b':p<=75?'#58a6ff':'#4CAF50'; }
@@ -1007,7 +1008,7 @@ class KFlowCard extends HTMLElement {
     </style>
     <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:13px;box-shadow:0 4px 20px rgba(0,0,0,.4);width:100%;box-sizing:border-box;">
       <div class="ct">⚡ Energy Flow <span id="battStatusBadge" style="margin-left:auto;font-size:.5rem;font-weight:700;letter-spacing:1.5px;padding:1px 8px;border-radius:8px;background:#21262d;color:#8b949e;text-transform:uppercase">IDLE</span></div>
-      <div style="width:100%;max-width:520px;margin:0 auto"><svg id="flowSvg" viewBox="0 0 520 470" style="width:100%;display:block">
+      <div style="width:100%;max-width:520px;margin:0 auto"><svg id="flowSvg" viewBox="0 0 520 500" style="width:100%;display:block">
       <defs>
         <filter id="arcSunF" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="7"/></filter>
         <filter id="arcSunF2" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="3"/></filter>
@@ -1199,9 +1200,12 @@ class KFlowCard extends HTMLElement {
     const battVolt2 = dual ? _n(this._val(this.config.battery2_voltage)) : 0;
     const mos2 = dual ? _n(this._val(this.config.battery2_mos)) : 0;
 
-    const chargerPower = _n(this._val(this.config.charger_power, true));
-    const chargerCurrent = _n(this._val(this.config.charger_current));
-    const chargerSoc = _n(this._val(this.config.charger_soc));
+    const chargerPowerRaw = this._val(this.config.charger_power, true);
+    const chargerCurrentRaw = this._val(this.config.charger_current);
+    const chargerSocRaw = this._val(this.config.charger_soc);
+    const chargerPower = _n(chargerPowerRaw);
+    const chargerCurrent = _n(chargerCurrentRaw);
+    const chargerSoc = _n(chargerSocRaw);
     const chargerEtaSensor = this._val(this.config.charger_eta);
     const chargerBattCapWh = Number(this.config.charger_battery_capacity_wh) || 0;
     const chargerStateStr = this._strVal(this.config.charger_state);
@@ -1626,7 +1630,10 @@ class KFlowCard extends HTMLElement {
         // Fix #12: removed early return here — was silently skipping any code added after this block
       } else {
         evGroup.style.display = '';
-      const isChargingEV = chargerStateStr === 'charging';
+      // Some integrations expose charger power but no compatible state entity.
+      // Keep explicit states authoritative and only fall back to measured power
+      // when the state is missing, unknown, or unavailable.
+      const isChargingEV = chargerStateStr === 'charging' || (!chargerStateStr && chargerPower > 10);
       const isCompleted = chargerStateStr === 'completed' || chargerStateStr === 'finished';
       const evFlow = getEl('flowHomeEV');
       const evIcon = getEl('evIconImg');
@@ -1644,9 +1651,9 @@ class KFlowCard extends HTMLElement {
         }
       }
       if (isChargingEV || isCompleted) {
-        setText('evPowerVal', chargerPower.toFixed(0) + ' W');
-        setText('evCurrentVal', chargerCurrent.toFixed(1) + ' A');
-        setText('evSocVal', chargerSoc.toFixed(0) + ' %');
+        setText('evPowerVal', chargerPowerRaw !== null ? chargerPower.toFixed(0) + ' W' : '-- W');
+        setText('evCurrentVal', chargerCurrentRaw !== null ? chargerCurrent.toFixed(1) + ' A' : '-- A');
+        setText('evSocVal', chargerSocRaw !== null ? chargerSoc.toFixed(0) + ' %' : '-- %');
         let evEta = '--';
         if (isChargingEV) {
           if (chargerEtaSensor !== null && !isNaN(chargerEtaSensor)) evEta = this._fmtTime(chargerEtaSensor / 60);
