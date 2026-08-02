@@ -144,7 +144,7 @@ All keys are configured through the visual editor. The YAML equivalents are list
 | Key | Default | Description |
 |---|---|---|
 | `_show_ev` | `false` | Enable EV section (chip toggle) |
-| `charger_state` | `''` | Charger state entity (string: `charging`, `completed`, etc.) |
+| `charger_state` | `''` | Optional charger state entity (`charging`, `completed`, `finished`, `disconnected`). If omitted, unknown, or unavailable, measured power above 10 W activates the EV flow; explicit states remain authoritative. |
 | `charger_power` | `''` | Charger power (W) |
 | `charger_current` | `''` | Charger current (A) |
 | `charger_soc` | `''` | Car battery SOC (%) |
